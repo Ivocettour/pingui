@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inscripción Torneo de Pádel</title>
+</head>
+<body>
+  <h1>Inscripción al Torneo de Pádel</h1>
+  <form id="registrationForm">
+    <label>Nombre completo:</label><br>
+    <input type="text" id="name" required><br><br>
+    <label>Categoría:</label><br>
+    <select id="category" required>
+      <option value="" disabled selected>Selecciona tu categoría</option>
+      <option value="Principiante">Principiante</option>
+      <option value="Intermedio">Intermedio</option>
+      <option value="Avanzado">Avanzado</option>
+      <option value="Profesional">Profesional</option>
+    </select><br><br>
+    <label>Problemas de horario:</label><br>
+    <textarea id="schedule"></textarea><br><br>
+    <button type="submit">Enviar Inscripción</button>
+  </form>
+
+  <script>
+    const GITHUB_API_BASE = "https://api.github.com";
+    const REPO_OWNER = "Ivocettour"; // Cambia al dueño del repositorio
+    const REPO_NAME = "pingui"; // Cambia al nombre del repositorio
+    const BRANCH_NAME = "main"; // Cambia al branch principal
+    const FILE_PATH = "inscripciones.json";
+
+    // Función para leer el archivo desde GitHub
+    async function fetchFileContent() {
+      try {
+        const url = `${GITHUB_API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("No se pudo cargar el archivo.");
+        const fileData = await response.json();
+        const content = atob(fileData.content); // Decodificar base64
+        return { content, sha: fileData.sha };
+      } catch (error) {
+        console.error("Error al leer el archivo:", error);
+        throw error;
+      }
+    }
+
+    // Función para actualizar directamente el archivo en GitHub
+    async function updateFile(inscription) {
+      try {
+        // 1. Leer el archivo actual
+        const { content, sha } = await fetchFileContent();
+        const inscriptions = JSON.parse(content);
+
+        // 2. Agregar la nueva inscripción
+        inscriptions.push(inscription);
+
+        // 3. Crear un nuevo contenido codificado en Base64
+        const updatedContent = btoa(JSON.stringify(inscriptions, null, 2));
+
+        // 4. Subir los cambios directamente a GitHub sin revisión
+        await fetch(`${GITHUB_API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: `Nueva inscripción: ${inscription.name}`,
+            content: updatedContent,
+            sha: sha,  // El sha es necesario para que GitHub sepa que estamos actualizando el archivo
+            branch: BRANCH_NAME,
+          }),
+        });
+
+        alert("¡Tu inscripción ha sido enviada y registrada exitosamente!");
+      } catch (error) {
+        console.error("Error al actualizar el archivo:", error);
+        alert("Hubo un error al enviar la inscripción. Inténtalo más tarde.");
+      }
+    }
+
+    // Evento del formulario para enviar la inscripción
+    document.getElementById("registrationForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const name = document.getElementById("name").value.trim();
+      const category = document.getElementById("category").value;
+      const schedule = document.getElementById("schedule").value.trim();
+
+      if (!name || !category) {
+        alert("Por favor, completa todos los campos obligatorios.");
+        return;
+      }
+
+      const newInscription = { name, category, schedule };
+      updateFile(newInscription);
+    });
+  </script>
+</body>
+</html>
+
